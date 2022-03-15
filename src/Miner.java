@@ -50,16 +50,16 @@ public class Miner implements Runnable {
     }
 
     private boolean setTargetHash(byte[] hash) {
-        synchronized (Miner.class) {
-            if (Miner.targetHash == null) {
+        if (Miner.targetHash == null) {
+            Miner.targetHash = hash;
+            return true;
+        }
+        int cmp = this.compare(Miner.targetHash, hash);
+        if (cmp == 1) {
+            synchronized (Miner.class) {
                 Miner.targetHash = hash;
-                return true;
             }
-            int cmp = this.compare(Miner.targetHash, hash);
-            if (cmp == 1) {
-                Miner.targetHash = hash;
-                return true;
-            }
+            return true;
         }
         return false;
     }
@@ -91,14 +91,13 @@ public class Miner implements Runnable {
                 if (this.setTargetHash(hash)) {
                     String strHash = DatatypeConverter.printHexBinary(hash);
                     String strNonce = DatatypeConverter.printHexBinary(nonce);
-                    System.out.println(LocalTime.now() + " " + "Hash:" + strHash + " Nonce:" + strNonce + " MinerID: " + this.minerID);
+                    System.out.println(LocalTime.now() +
+                            " Hash:" + strHash + " Nonce:" + strNonce + " MinerID: " + this.minerID);
                 }
                 rnd.nextBytes(nonce);
             }
-
         } catch (NoSuchAlgorithmException e) {
             e.printStackTrace();
         }
-
     }
 }
