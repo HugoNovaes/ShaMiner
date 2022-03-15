@@ -51,7 +51,9 @@ public class Miner implements Runnable {
 
     private boolean setTargetHash(byte[] hash) {
         if (Miner.targetHash == null) {
-            Miner.targetHash = hash;
+            synchronized (Miner.class) {
+                Miner.targetHash = hash;
+            }
             return true;
         }
         int cmp = this.compare(Miner.targetHash, hash);
