@@ -1,17 +1,14 @@
-import com.sun.org.apache.xml.internal.security.algorithms.Algorithm;
-import sun.misc.FloatingDecimal;
-
 import javax.xml.bind.DatatypeConverter;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.time.LocalTime;
-import java.util.Random;
 
 public class Miner implements Runnable {
 
     private final int minerID;
     private Thread thisThread;
+    private static byte[] foundNonce = null;
     private static byte[] targetHash = {
             (byte) 0xFF, (byte) 0xFF, (byte) 0xFF, (byte) 0xFF, (byte) 0xFF, (byte) 0xFF, (byte) 0xFF, (byte) 0xFF,
             (byte) 0xFF, (byte) 0xFF, (byte) 0xFF, (byte) 0xFF, (byte) 0xFF, (byte) 0xFF, (byte) 0xFF, (byte) 0xFF,
@@ -19,12 +16,18 @@ public class Miner implements Runnable {
             (byte) 0xFF, (byte) 0xFF, (byte) 0xFF, (byte) 0xFF, (byte) 0xFF, (byte) 0xFF, (byte) 0xFF, (byte) 0xFF};
 
     public Miner(int minerID) {
-        this.minerID = minerID;
+        this.minerID = minerID + 1;
     }
 
-    public byte[] getTargetHash() {
+    public static byte[] getTargetHash() {
         synchronized (Miner.class) {
             return Miner.targetHash;
+        }
+    }
+
+    public static byte[] getFoundNonce(){
+        synchronized ( Miner.class) {
+            return Miner.foundNonce;
         }
     }
 
@@ -49,17 +52,15 @@ public class Miner implements Runnable {
         return 0;
     }
 
-    private boolean setTargetHash(byte[] hash) {
-        if (Miner.targetHash == null) {
-            synchronized (Miner.class) {
-                Miner.targetHash = hash;
-            }
-            return true;
-        }
+    private boolean setTargetHash(byte[] hash, byte[] nonce) {
         int cmp = this.compare(Miner.targetHash, hash);
         if (cmp == 1) {
             synchronized (Miner.class) {
-                Miner.targetHash = hash;
+                if (this.compare(Miner.targetHash, hash) <= 0) return false;
+                Miner.targetHash = new byte[hash.length];
+                Miner.foundNonce = new byte[nonce.length];
+                System.arraycopy(hash, 0, Miner.targetHash, 0, hash.length);
+                System.arraycopy(nonce, 0, Miner.foundNonce, 0, nonce.length);
             }
             return true;
         }
@@ -77,6 +78,7 @@ public class Miner implements Runnable {
 
     @Override
     public void run() {
+        System.out.println("Miner " + this.minerID + " started!");
         this.thisThread = Thread.currentThread();
 
         try {
@@ -90,10 +92,10 @@ public class Miner implements Runnable {
             while (this.thisThread.isAlive()) {
                 byte[] hash = messageDigest.digest(nonce);
                 messageDigest.reset();
-                if (this.setTargetHash(hash)) {
+                if (this.setTargetHash(hash, nonce)) {
                     String strHash = DatatypeConverter.printHexBinary(hash);
                     String strNonce = DatatypeConverter.printHexBinary(nonce);
-                    System.out.println(LocalTime.now() +
+                    System.out.println("\r" + LocalTime.now() +
                             " Hash:" + strHash + " Nonce:" + strNonce + " MinerID: " + this.minerID);
                 }
                 rnd.nextBytes(nonce);
